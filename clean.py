@@ -23,4 +23,22 @@ dfcol = dfcol.rename(columns={
 })
 dfcol["order_date"]=pd.to_datetime(dfcol["order_date"])
 dfcol["shipping_date"]=pd.to_datetime(dfcol["shipping_date"])
-print(dfcol.dtypes)
+#print(dfcol.dtypes)
+
+
+#sanity check
+#calc_days= (dfcol["shipping_date"]- dfcol["order_date"]).dt.days
+#print(calc_days)
+calc_days= (dfcol["shipping_date"].dt.normalize() - dfcol["order_date"].dt.normalize()).dt.days
+
+
+diff=(calc_days==dfcol["days_shipping_real"]).sum()
+print(diff, len(dfcol))
+print(calc_days.head())
+#print(dfcol["days_shipping_real"].head())
+#print(calc_days.dtype, dfcol["days_shipping_real"].dtype)
+
+mismatch = calc_days != dfcol["days_shipping_real"]
+#print(dfcol.loc[mismatch, ["order_date", "shipping_date", "days_shipping_real"]].head(10))
+print((calc_days - dfcol["days_shipping_real"])[mismatch].value_counts())
+
