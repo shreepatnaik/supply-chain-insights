@@ -34,7 +34,7 @@ calc_days= (dfcol["shipping_date"].dt.normalize() - dfcol["order_date"].dt.norma
 
 diff=(calc_days==dfcol["days_shipping_real"]).sum()
 print(diff, len(dfcol))
-print(calc_days.head())
+#print(calc_days.head())
 #print(dfcol["days_shipping_real"].head())
 #print(calc_days.dtype, dfcol["days_shipping_real"].dtype)
 
