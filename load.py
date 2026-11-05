@@ -26,4 +26,4 @@ df["late_delivery_risk"] = df["late_delivery_risk"].astype(bool)
 # 5. load into Postgres:
 load = df.to_sql("orders", engine, if_exists="append", index=False, chunksize=10000)
 
-print (load)
+print (print(len(df), "rows loaded"))
