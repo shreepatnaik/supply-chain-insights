@@ -19,4 +19,4 @@ engine = create_engine(url)
 
 #connect and query
 with engine.connect() as conn:
-    conn.execute(text("SELECT COUNT(*) FROM orders")).scalar()
+    print(conn.execute(text("SELECT COUNT(*) FROM orders")).scalar())
