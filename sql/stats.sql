@@ -19,3 +19,8 @@ FROM orders
 WHERE delivery_status <> 'Shipping canceled'
 GROUP BY shipping_mode
 ORDER BY late_pct DESC;
+
+--First Class’s 100% late rate is a dataset
+select days_shipping_scheduled, days_shipping_real, count(*) 
+from orders where shipping_mode = 'First Class' and delivery_status <> 'Shipping canceled' 
+group by days_shipping_scheduled, days_shipping_real; 
