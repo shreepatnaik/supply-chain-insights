@@ -24,3 +24,8 @@ ORDER BY late_pct DESC;
 select days_shipping_scheduled, days_shipping_real, count(*) 
 from orders where shipping_mode = 'First Class' and delivery_status <> 'Shipping canceled' 
 group by days_shipping_scheduled, days_shipping_real; 
+
+--late rate by region.
+select order_region, count(*) as Items, round(count(*) filter (where days_shipping_real > days_shipping_scheduled) * 100.0 / COUNT(*), 1) AS late_pct 
+ from  orders where delivery_status <> 'Shipping canceled'  
+ group by order_region order by  late_pct DESC; 
