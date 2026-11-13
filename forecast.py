@@ -16,9 +16,15 @@ if __name__ == "__main__":
     df = monthly_demand()
     # print(df)
     #print(len(df))
+    
     train = df.iloc[:27]
     test = df.iloc[27:]
     #print(len(train), len(test))
+    
+    
     naive_pred=train["units"].iloc[-1]
-    print("Naive prediction for April 2017:", naive_pred)
-    print("Actual demand for April 2017:", test["units"].iloc[0])
+    #print("Naive prediction for April 2017:", naive_pred)
+    #print("Actual demand for April 2017:", test["units"].iloc[0])
+    
+    naive_mape= (abs(test["units"] - naive_pred)/test["units"]).mean()*100
+    print("Naive MAPE:", round(naive_mape, 1), "%")
