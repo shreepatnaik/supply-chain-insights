@@ -82,18 +82,7 @@ DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
    ```
    python load.py
    python db_check.py     # should print 180519
-   ```
-
-## Roadmap
-
-- [x] Explore and clean the data
-- [x] Load into PostgreSQL
-- [x] SQL analysis of late deliveries
-- [ ] FastAPI endpoints serving the stats
-- [ ] LLM explanation layer with an audit trail of model inputs
-- [ ] Tests and CI (pytest + GitHub Actions)
-- [ ] Simple React dashboard
-
+   ``
 ## Data source
 
 DataCo Smart Supply Chain for Big Data Analysis, by Fabian Constante, Fernando Silva and António Pereira. Published on [Mendeley Data](https://data.mendeley.com/datasets/8gx2fvg2k6/5), DOI: 10.17632/8gx2fvg2k6.5.
