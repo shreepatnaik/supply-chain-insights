@@ -13,39 +13,62 @@ def monthly_demand():
     df = pd.read_sql(query, engine)
     return df
 
-if __name__ == "__main__":
-    df = monthly_demand()
-    # print(df)
-    #print(len(df))
-
-train = df.iloc[:27]
-test = df.iloc[27:]
-#print(len(train), len(test))
-
-
-naive_pred=train["units"].iloc[-1]
-#print("Naive prediction for April 2017:", naive_pred)
-#print("Actual demand for April 2017:", test["units"].iloc[0])
-
-#naive_mape= (abs(test["units"] - naive_pred)/test["units"]).mean()*100
-
 def mape(actual, predicted):
     return (abs(actual - predicted)/actual).mean()*100
 
-print("Naive MAPE:", round(mape(test["units"], naive_pred), 1), "%")
+# Each method gets the past demand (history) and how many months to forecast (h),
+# and returns h predictions.
 
-seasonal_pred= train["units"].iloc[15:21].values
-print("Seasonal MAPE:", round(mape(test["units"], seasonal_pred),1), "%")
+def naive(history, h):
+    return [history.iloc[-1]] * h
 
-ma_pred = train["units"].iloc[-3].mean()
-print("Moving average MAPE:", round(mape(test["units"], ma_pred),1), "%")
 
-ets_model = ExponentialSmoothing(
-    train["units"],
-    trend = None, 
-    seasonal= "add",
-    seasonal_periods=12,
-).fit()
+def seasonal_naive(history, h):
+    n = len(history)
+    return history.iloc[n - 12 : n - 12 + h].values
 
-ets_pred = ets_model.forecast(6).values
-print("ETS MAPE:", round(mape(test["units"], ets_pred), 1), "%")
+
+def moving_average(history, h, window=3):
+    return [history.iloc[-window:].mean()] * h
+
+
+def ets(history, h):
+    model = ExponentialSmoothing(
+        history,
+        trend="add",
+        seasonal="add",
+        seasonal_periods=12,
+    ).fit()
+    return model.forecast(h).values
+
+
+METHODS = {
+    "naive": naive,
+    "seasonal": seasonal_naive,
+    "moving average": moving_average,
+    "ets": ets,
+}
+
+def backtest(units, h=3, start =24):
+    results = {name:[] for name in METHODS}
+    for n in range(start, len(units) - h+1):
+        history = units.iloc[:n]
+        actual = units.iloc[n : n+h] .values
+        for name, method in METHODS.items():
+            results[name].append(mape(actual, method(history, h)))
+    return {name: sum(scores) / len(scores) for name, scores in results.items()}
+
+
+if __name__ == "__main__":
+    units = monthly_demand()["units"]
+   
+    # single split: learn from 27 months, test on the last 6
+    train, test = units.iloc[:27], units.iloc[27:]
+    for name, method in METHODS.items():
+        pred = method(train, len(test))
+        print(f"{name} MAPE (single split): {mape(test.values, pred):.1f}%")
+
+    # rolling backtest: 7 windows, forecasting 3 months each time
+    print()
+    for name, score in backtest(units).items():
+        print(f"{name} MAPE (rolling): {score:.1f}%")   
