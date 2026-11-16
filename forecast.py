@@ -1,6 +1,7 @@
 import pandas as pd
 from db import get_engine
 from sqlalchemy import text
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 engine = get_engine()
 
@@ -31,10 +32,20 @@ naive_pred=train["units"].iloc[-1]
 def mape(actual, predicted):
     return (abs(actual - predicted)/actual).mean()*100
 
-#print("Naive MAPE:", round(mape(test["units"], naive_pred), 1), "%")
+print("Naive MAPE:", round(mape(test["units"], naive_pred), 1), "%")
 
 seasonal_pred= train["units"].iloc[15:21].values
-#print("Seasonal MAPE:", round(mape(test["units"], seasonal_pred),1), "%")
+print("Seasonal MAPE:", round(mape(test["units"], seasonal_pred),1), "%")
 
 ma_pred = train["units"].iloc[-3].mean()
 print("Moving average MAPE:", round(mape(test["units"], ma_pred),1), "%")
+
+ets_model = ExponentialSmoothing(
+    train["units"],
+    trend = None, 
+    seasonal= "add",
+    seasonal_periods=12,
+).fit()
+
+ets_pred = ets_model.forecast(6).values
+print("ETS MAPE:", round(mape(test["units"], ets_pred), 1), "%")
