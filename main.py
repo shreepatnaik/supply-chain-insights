@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from db import get_engine
+from explain import get_facts, explain
 
 app=FastAPI()
 engine = get_engine()
@@ -34,3 +35,10 @@ def late_by_shippingmode():
     with engine.connect() as conn:
         result = conn.execute(query)
         return [dict(row._mapping) for row in result]
+
+@app.get("/explain/forecast")
+def explain_forecast():
+    facts = get_facts()
+    return explain(facts)
+
+
