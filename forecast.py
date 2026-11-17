@@ -4,15 +4,12 @@ from db import get_engine
 from sqlalchemy import text
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
-engine = get_engine()
-
 def monthly_demand(): 
     query = text("""
                     select DATE_TRUNC('month', order_date) AS Month, Sum(quantity) as Units 
                     from orders where order_date < '2017-10-01'
                     group by month order by month; """)
-    df = pd.read_sql(query, engine)
-    return df
+    return pd.read_sql(query, get_engine())
 
 
 def mape(actual, predicted):
