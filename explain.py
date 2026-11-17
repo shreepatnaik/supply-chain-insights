@@ -22,21 +22,25 @@ Write 3 to 4 plain-English sentences."""
 
 
 def explain(facts):
-    response = client.messages.create(
-        model=model,
-        max_tokens=1000,
-        system=RULES,
-        messages=[{
-            "role": "user",
-            "content": "Rolling backtest MAPE by forecasting method (lower is better):\n"
-                       + json.dumps(facts),
-        }],
-    )
-    text = "".join(block.text for block in response.content if block.type == "text")
-    return {
-        "explanation": text,
-        "based_on": facts,
-    }
+    try:
+         response = client.messages.create(
+            model=model,
+            max_tokens=1000,
+            system=RULES,
+            messages=[{
+                "role": "user",
+                "content": "Rolling backtest MAPE by forecasting method (lower is better):\n"
+                        + json.dumps(facts),
+            }],
+        )
+         text = "".join(block.text for block in response.content if block.type == "text")
+         return {"explanation": text, "based_on": facts}
+    except Exception as error:
+        return {
+            "explanation": None,
+            "reason": f"Explanation unavailable: {type(error).__name__}",
+            "based_on": facts,
+        }
 
 if __name__ == "__main__":
     facts = get_facts()
