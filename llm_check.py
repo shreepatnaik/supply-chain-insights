@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from anthropic import Anthropic
 
+
 load_dotenv()
 
 client = Anthropic()
@@ -12,5 +13,4 @@ response = client.messages.create(
     max_tokens=50,
     messages=[{"role": "user", "content": "Reply with just: connection works"}],
 )
-
 print(response.content[0].text)

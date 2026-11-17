@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from db import get_engine
 
+
 app=FastAPI()
 engine = get_engine()
 
@@ -34,3 +35,4 @@ def late_by_shippingmode():
     with engine.connect() as conn:
         result = conn.execute(query)
         return [dict(row._mapping) for row in result]
+
