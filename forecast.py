@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from db import get_engine
 from sqlalchemy import text
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
@@ -13,8 +14,11 @@ def monthly_demand():
     df = pd.read_sql(query, engine)
     return df
 
+
 def mape(actual, predicted):
-    return (abs(actual - predicted)/actual).mean()*100
+    actual = np.asarray(actual, dtype=float)
+    predicted = np.asarray(predicted, dtype=float)
+    return np.mean(np.abs(actual - predicted) / actual) * 100
 
 # Each method gets the past demand (history) and how many months to forecast (h),
 # and returns h predictions.
