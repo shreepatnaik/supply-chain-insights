@@ -23,6 +23,31 @@ Across the 23 regions, late rates sit between 55% and 59% for almost all of them
 
 **3. First Class's 100% late rate is a dataset artifact, not a business finding.** Every one of its 26,513 shipped items is scheduled for 1 day and recorded as taking exactly 2.
 
+## Demand forecasting
+
+**Data break:** from October 2017, order items drop about 60%, categories shrink from 24
+to as few as 8, and from November every item has quantity 1. That looks like a change in
+how data was recorded, not real demand, so forecasting uses January 2015 to September 2017 only.
+
+Methods compared with MAPE (lower is better):
+
+| Method          | Single split (6 months) | Rolling backtest (7 windows, 3 months) |
+|-----------------|-------------------------|----------------------------------------|
+| Moving average  | 5.7%                    | 3.9%                                   |
+| Holt-Winters    | 5.4%                    | 4.0%                                   |
+| Seasonal naive  | 5.2%                    | 4.2%                                   |
+| Naive           | 7.7%                    | 4.3%                                   |
+
+The single split favored seasonal naive, but the rolling backtest puts all four methods
+within 0.4 points. On this stable series, simple methods are as accurate as Holt-Winters
+and easier to explain.
+
+## LLM explanations
+
+`/explain/forecast` sends only the computed backtest scores to Claude, with rules: no
+invented or calculated numbers, and no unsupported recommendations. If the model call
+fails, the endpoint still returns the facts, with a reason instead of an explanation.
+
 ## Data quality notes
 
 I checked the source data before trusting any number from it:
@@ -70,6 +95,8 @@ DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
    PGUSER=postgres
    PGPASSWORD=your-password
    PGDATABASE=supply_chain
+   ANTHROPIC_API_KEY=your-key
+   ANTHROPIC_MODEL=a-current-claude-model-id
    ```
 
 4. **Create the database and table:**
@@ -83,6 +110,11 @@ DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
    python load.py
    python db_check.py     # should print 180519
    ``
+
+6. **Start the API:**
+   python -m uvicorn main:app --reload
+   Then open 127.0.0.1:8000/docs to try every endpoint.
+   
 ## Data source
 
 DataCo Smart Supply Chain for Big Data Analysis, by Fabian Constante, Fernando Silva and António Pereira. Published on [Mendeley Data](https://data.mendeley.com/datasets/8gx2fvg2k6/5), DOI: 10.17632/8gx2fvg2k6.5.
