@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from clean import get_clean_data
+from pipeline.clean import get_clean_data
 
 load_dotenv()
 
