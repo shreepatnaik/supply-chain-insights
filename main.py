@@ -13,14 +13,8 @@ def health():
 
 @app.get("/stats/late-by-region")
 def late_by_region():
-    query = text("""
-                    select order_region, count(*) as Items, round(count(*) filter (where days_shipping_real > days_shipping_scheduled) * 100.0 / COUNT(*), 1) AS late_pct 
-                    from  orders where delivery_status <> 'Shipping canceled'  
-                    group by order_region order by  late_pct DESC; """)
-
-    with engine.connect() as conn:
-        result = conn.execute(query)
-        return [dict(row._mapping) for row in result]
+   
+        return stats.late_by_region()
 
 @app.get("/stats/late-by-shipping-mode")
 def late_by_shippingmode(): 
