@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from forecast import mape, seasonal_naive, moving_average, naive, ets
+from core.forecast import mape, seasonal_naive, moving_average, naive, ets
 
 def test_mape_perfect_forecast_is_zero():
     assert mape(100, 100) == 0
