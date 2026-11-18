@@ -10,6 +10,13 @@ from langgraph.types import interrupt, Command
 load_dotenv()
 llm = ChatAnthropic(model=os.getenv("ANTHROPIC_MODEL"), max_tokens=300)
 
+def reply_text(message):
+    content = message.content
+    if isinstance(content, str):
+        return content
+    return "".join(b.get("text", "") for b in content
+                   if isinstance(b, dict) and b.get("type") == "text")
+
 class ForecastState(TypedDict):
     method: str
     forecast: dict
@@ -17,8 +24,10 @@ class ForecastState(TypedDict):
     verdict: str
     feedback: str
     approved: bool
+    attempts: int
 
 def forecaster(state: ForecastState) -> dict:
+    print(f"Forecaster: attempt {state.get('attempts', 0) + 1}, asking Claude...", flush=True)
     scores = forecast.backtest_summary()
     prompt = (
         f"Backtest MAPE by method (lower is better): {scores}. "
@@ -26,15 +35,17 @@ def forecaster(state: ForecastState) -> dict:
         "Reply with exactly one method name from that list on the first line, "
         "then one sentence explaining the choice."
     )
-    reply = llm.invoke(prompt).content.strip().splitlines()
+    reply = reply_text(llm.invoke(prompt)).strip().splitlines()
     method = reply[0].strip()
     return {
         "method": method,
         "forecast": forecast.forecast_next(method, 3),
         "reason": " ".join(reply[1:]),
+        "attempts": state.get("attempts", 0) + 1,
     }
 
 def verifier(state: ForecastState) -> dict:
+    print("Verifier: checking the proposal...", flush=True)
     scores = forecast.backtest_summary()
     method = state["method"]
     if method not in scores:
@@ -46,6 +57,16 @@ def verifier(state: ForecastState) -> dict:
     if state["forecast"] != forecast.forecast_next(method, 3):
         return {"verdict": "reject", "feedback": "Forecast numbers don't match the tool output."}
     return {"verdict": "approve", "feedback": ""}
+
+def check_proposal(method, proposed, scores, expected, tolerance=0.5):
+    if method not in scores:
+        return "reject", f"'{method}' is not a valid method."
+    best = min(scores.values())
+    if scores[method] - best > tolerance:
+        return "reject", f"{method} scores {scores[method]}, well above the best {best}."
+    if proposed != expected:
+        return "reject", "Forecast numbers don't match the tool output."
+    return "approve", ""
 
 def human_approval(state: ForecastState) -> dict:
     answer = interrupt({"method": state["method"],
@@ -60,6 +81,7 @@ def after_verify(state: ForecastState):
     if state.get("attempts", 0) >= 3:
         return END
     return "forecaster"
+
 
 
 builder = StateGraph(ForecastState)

@@ -3,6 +3,7 @@ import numpy as np
 from core.db import get_engine
 from sqlalchemy import text
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from functools import lru_cache
 
 def monthly_demand(): 
     query = text("""
@@ -73,6 +74,7 @@ def forecast_next(method="seasonal_naive", months=3):
         ],
     }
 
+@lru_cache
 
 def backtest_summary():
     units = monthly_demand()["units"]
