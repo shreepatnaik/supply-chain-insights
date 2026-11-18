@@ -2,7 +2,7 @@
 
 An explainable supply-chain analytics app built on 180,000+ real-world order records.
 
-**The rule this project follows: code computes the numbers, the LLM only explains them.** Every statistic comes from SQL I can test and verify. The language model's job (coming in a later step) is to explain those results in plain English, with an audit trail of exactly what data it was given.
+**The rule this project follows: code computes the numbers, the LLM only explains them.** Every statistic comes from SQL I can test and verify. The language model explains those results in plain English, with an audit trail of exactly what data it was given.
 
 ## Key findings so far
 
@@ -25,9 +25,7 @@ Across the 23 regions, late rates sit between 55% and 59% for almost all of them
 
 ## Demand forecasting
 
-**Data break:** from October 2017, order items drop about 60%, categories shrink from 24
-to as few as 8, and from November every item has quantity 1. That looks like a change in
-how data was recorded, not real demand, so forecasting uses January 2015 to September 2017 only.
+**Data break:** from October 2017, order items drop about 60%, categories shrink from 24 to as few as 8, and from November every item has quantity 1. That looks like a change in how data was recorded, not real demand, so forecasting uses January 2015 to September 2017 only.
 
 Methods compared with MAPE (lower is better):
 
@@ -38,15 +36,30 @@ Methods compared with MAPE (lower is better):
 | Seasonal naive  | 5.2%                    | 4.2%                                   |
 | Naive           | 7.7%                    | 4.3%                                   |
 
-The single split favored seasonal naive, but the rolling backtest puts all four methods
-within 0.4 points. On this stable series, simple methods are as accurate as Holt-Winters
-and easier to explain.
+The single split favored seasonal naive, but the rolling backtest puts all four methods within 0.4 points. On this stable series, simple methods are as accurate as Holt-Winters and easier to explain.
 
 ## LLM explanations
 
-`/explain/forecast` sends only the computed backtest scores to Claude, with rules: no
-invented or calculated numbers, and no unsupported recommendations. If the model call
-fails, the endpoint still returns the facts, with a reason instead of an explanation.
+`/explain/forecast` sends only the computed backtest scores to Claude, with rules: no invented or calculated numbers, and no unsupported recommendations. If the model call fails, the endpoint still returns the facts, with a reason instead of an explanation.
+
+## MCP server
+
+Exposes the stats and forecasts as tools any MCP client can call. All SQL and math live in `core/`; the server only wraps them, so the API and the MCP server always return the same numbers.
+
+| Tool | Returns |
+|---|---|
+| `late_by_shipping_mode` | Late rate per shipping mode (canceled orders excluded) |
+| `late_by_region` | Late rate per order region (canceled orders excluded) |
+| `forecast_demand(method, months)` | Next 1–12 months of units using naive, seasonal_naive, moving_average or ets |
+| `backtest_results` | Average MAPE per method from a rolling 3-month backtest |
+
+## Forecast approval workflow
+
+A LangGraph workflow in `agents/workflow.py`:
+
+1. **Forecaster:** Claude reads the backtest scores and picks a method with a one-line reason. The forecast numbers are computed by code, not by the model.
+2. **Verifier:** rule-based checks in `core/verify.py`, deliberately not a second LLM. It rejects an unknown method, a method more than 0.5 MAPE points worse than the best, or numbers that don't match the forecast function. A rejection goes back to the forecaster with feedback, up to 3 attempts.
+3. **Human approval:** the graph pauses until a person approves or rejects.
 
 ## Data quality notes
 
@@ -61,18 +74,18 @@ I checked the source data before trusting any number from it:
 ## How it works
 
 ```
-DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
-              (select,      (load       (orders         (late-rate
-               rename,       180,519     table)          analysis)
-               parse dates)  rows)
+DataCo CSV → pipeline/clean.py → pipeline/load.py → PostgreSQL → core/ (stats, forecast, verify, explain)
+                                                                    ↓
+                                                interface/ (FastAPI + MCP server) · agents/ (LangGraph workflow)
 ```
 
-- `explore.py`: first look at the raw data (shape, columns, missing values)
-- `clean.py`: `get_clean_data()` selects 15 columns, renames them to snake_case and parses dates; running it directly also runs the shipping-days sanity check
-- `sql/schema.sql`: the `orders` table definition
-- `load.py`: loads the cleaned data into Postgres
-- `db_check.py`: confirms the connection and row count
-- `sql/stats.sql`: the analysis queries behind the findings above
+- `pipeline/`: `clean.py` selects 15 columns, renames them to snake_case and parses dates; `load.py` loads them into Postgres
+- `core/`: all logic. `db.py` (connection), `stats.py` (late-rate queries), `forecast.py` (methods and backtest), `verify.py` (proposal checks), `explain.py` (Claude explanations)
+- `interface/`: `main.py` (FastAPI) and `mcp_server.py` (MCP tools), both thin wrappers over `core/`
+- `agents/`: `workflow.py`, the forecast approval workflow
+- `scripts/`: `explore.py`, `db_check.py`, `llm_check.py` (one-off checks)
+- `sql/`: `schema.sql` (the `orders` table) and the analysis queries
+- `tests/`: pytest suite, run by GitHub Actions on every push and pull request
 
 ## Run it yourself
 
@@ -83,8 +96,8 @@ DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
 2. **Set up Python:**
    ```
    python -m venv .venv
-   .venv\Scripts\activate          # Windows
-   source .venv/bin/activate       # Mac/Linux
+   .venv\Scripts\activate        # Windows
+   source .venv/bin/activate     # Mac/Linux
    pip install -r requirements.txt
    ```
 
@@ -107,14 +120,31 @@ DataCo CSV  →  clean.py  →  load.py  →  PostgreSQL  →  sql/stats.sql
 
 5. **Load and verify:**
    ```
-   python load.py
-   python db_check.py     # should print 180519
-   ``
+   python -m pipeline.load
+   python -m scripts.db_check    # should print 180519
+   ```
 
 6. **Start the API:**
-   python -m uvicorn main:app --reload
+   ```
+   python -m uvicorn interface.main:app --reload
+   ```
    Then open 127.0.0.1:8000/docs to try every endpoint.
-   
+
+7. **Run the MCP server** in the MCP Inspector:
+   ```
+   mcp dev interface/mcp_server.py
+   ```
+
+8. **Run the approval workflow:**
+   ```
+   python -m agents.workflow
+   ```
+
+9. **Run the tests:**
+   ```
+   python -m pytest
+   ```
+
 ## Data source
 
 DataCo Smart Supply Chain for Big Data Analysis, by Fabian Constante, Fernando Silva and António Pereira. Published on [Mendeley Data](https://data.mendeley.com/datasets/8gx2fvg2k6/5), DOI: 10.17632/8gx2fvg2k6.5.
