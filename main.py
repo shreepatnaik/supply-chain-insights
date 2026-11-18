@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 from db import get_engine
 from explain import get_facts, explain
+import stats
 
 app=FastAPI()
 engine = get_engine()
@@ -23,18 +24,7 @@ def late_by_region():
 
 @app.get("/stats/late-by-shipping-mode")
 def late_by_shippingmode(): 
-    query = text("""
-                    SELECT shipping_mode,
-                        COUNT(*) AS items,
-                        ROUND(COUNT(*) FILTER (WHERE days_shipping_real > days_shipping_scheduled) * 100.0 / COUNT(*), 1) AS late_pct
-                    FROM orders
-                    WHERE delivery_status <> 'Shipping canceled'
-                    GROUP BY shipping_mode
-                    ORDER BY late_pct DESC; """)
-
-    with engine.connect() as conn:
-        result = conn.execute(query)
-        return [dict(row._mapping) for row in result]
+    return stats.late_by_shipping_mode()
 
 @app.get("/explain/forecast")
 def explain_forecast():
