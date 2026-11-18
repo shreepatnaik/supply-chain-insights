@@ -6,9 +6,10 @@ from core import forecast
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import interrupt, Command
+from core.verify import check_proposal
 
 load_dotenv()
-llm = ChatAnthropic(model=os.getenv("ANTHROPIC_MODEL"), max_tokens=300)
+llm = ChatAnthropic(model=os.getenv("ANTHROPIC_MODEL"), max_tokens=300, timeout=30)
 
 def reply_text(message):
     content = message.content
@@ -46,27 +47,11 @@ def forecaster(state: ForecastState) -> dict:
 
 def verifier(state: ForecastState) -> dict:
     print("Verifier: checking the proposal...", flush=True)
-    scores = forecast.backtest_summary()
     method = state["method"]
-    if method not in scores:
-        return {"verdict": "reject", "feedback": f"'{method}' is not a valid method."}
-    best = min(scores.values())
-    if scores[method] - best > 0.5:
-        return {"verdict": "reject",
-                "feedback": f"{method} scores {scores[method]}, well above the best {best}."}
-    if state["forecast"] != forecast.forecast_next(method, 3):
-        return {"verdict": "reject", "feedback": "Forecast numbers don't match the tool output."}
-    return {"verdict": "approve", "feedback": ""}
-
-def check_proposal(method, proposed, scores, expected, tolerance=0.5):
-    if method not in scores:
-        return "reject", f"'{method}' is not a valid method."
-    best = min(scores.values())
-    if scores[method] - best > tolerance:
-        return "reject", f"{method} scores {scores[method]}, well above the best {best}."
-    if proposed != expected:
-        return "reject", "Forecast numbers don't match the tool output."
-    return "approve", ""
+    scores = forecast.backtest_summary()
+    expected = forecast.forecast_next(method, 3) if method in scores else None
+    verdict, feedback = check_proposal(method, state["forecast"], scores, expected)
+    return {"verdict": verdict, "feedback": feedback}
 
 def human_approval(state: ForecastState) -> dict:
     answer = interrupt({"method": state["method"],
