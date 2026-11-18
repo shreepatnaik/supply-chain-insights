@@ -1,5 +1,5 @@
 import pandas as pd
-from db import get_engine
+from core.db import get_engine
 
 
 def late_by_shipping_mode():

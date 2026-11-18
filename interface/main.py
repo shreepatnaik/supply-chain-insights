@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from sqlalchemy import text
-from db import get_engine
-from explain import get_facts, explain
-import stats
+from core.db import get_engine
+from core.explain import get_facts, explain
+import core.stats as stats
 
 app=FastAPI()
 engine = get_engine()

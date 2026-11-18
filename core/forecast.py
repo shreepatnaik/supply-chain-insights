@@ -1,20 +1,20 @@
 import pandas as pd
-from db import get_engine
+import numpy as np
+from core.db import get_engine
 from sqlalchemy import text
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
-
-engine = get_engine()
 
 def monthly_demand(): 
     query = text("""
                     select DATE_TRUNC('month', order_date) AS Month, Sum(quantity) as Units 
                     from orders where order_date < '2017-10-01'
                     group by month order by month; """)
-    df = pd.read_sql(query, engine)
+    df = pd.read_sql(query, get_engine())
     return df
 
 def mape(actual, predicted):
-    return (abs(actual - predicted)/actual).mean()*100
+    actual, predicted = np.asarray(actual), np.asarray(predicted)
+    return float(np.mean(np.abs(actual - predicted) / actual) * 100)
 
 # Each method gets the past demand (history) and how many months to forecast (h),
 # and returns h predictions.
@@ -44,8 +44,8 @@ def ets(history, h):
 
 METHODS = {
     "naive": naive,
-    "seasonal": seasonal_naive,
-    "moving average": moving_average,
+    "seasonal_naive": seasonal_naive,
+    "moving_average": moving_average,
     "ets": ets,
 }
 
@@ -57,6 +57,26 @@ def backtest(units, h=3, start =24):
         for name, method in METHODS.items():
             results[name].append(mape(actual, method(history, h)))
     return {name: sum(scores) / len(scores) for name, scores in results.items()}
+
+def forecast_next(method="seasonal_naive", months=3):
+    if method not in METHODS:
+        return {"error": f"Unknown method. Choose from {list(METHODS)}"}
+    months = max(1, min(months, 12))
+    df = monthly_demand()
+    preds = METHODS[method](df["units"], months)
+    future = pd.date_range(df["month"].iloc[-1], periods=months + 1, freq="MS")[1:]
+    return {
+        "method": method,
+        "forecast": [
+            {"month": d.strftime("%Y-%m"), "units": round(float(p))}
+            for d, p in zip(future, preds)
+        ],
+    }
+
+
+def backtest_summary():
+    units = monthly_demand()["units"]
+    return {name: round(score, 1) for name, score in backtest(units).items()}
 
 
 if __name__ == "__main__":
