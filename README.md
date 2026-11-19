@@ -57,9 +57,26 @@ Exposes the stats and forecasts as tools any MCP client can call. All SQL and ma
 
 A LangGraph workflow in `agents/workflow.py`:
 
+```mermaid
+graph TD
+    START --> forecaster
+    forecaster --> verifier
+    verifier -->|approve| human
+    verifier -->|reject, under 3 tries| forecaster
+    verifier -->|reject, 3 tries| END
+    human --> END
+```
+
 1. **Forecaster:** Claude reads the backtest scores and picks a method with a one-line reason. The forecast numbers are computed by code, not by the model.
 2. **Verifier:** rule-based checks in `core/verify.py`, deliberately not a second LLM. It rejects an unknown method, a method more than 0.5 MAPE points worse than the best, or numbers that don't match the forecast function. A rejection goes back to the forecaster with feedback, up to 3 attempts.
 3. **Human approval:** the graph pauses until a person approves or rejects.
+
+Over the API:
+
+- `POST /forecast/propose` runs the forecaster and verifier, then returns the proposal and a `thread_id`.
+- `POST /forecast/{thread_id}/decision?approve=true` resumes that run with the decision.
+
+Pending runs are held in memory, so they're lost if the API restarts.
 
 ## Data quality notes
 
