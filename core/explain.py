@@ -2,7 +2,7 @@ import os
 import json
 from dotenv import load_dotenv
 from anthropic import Anthropic
-from forecast import monthly_demand, backtest
+from core.forecast import monthly_demand, backtest
 
 load_dotenv()
 client = Anthropic()
