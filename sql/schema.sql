@@ -15,3 +15,14 @@ CREATE TABLE orders (
     sales                    NUMERIC(10, 2) NOT NULL,
     order_status             TEXT NOT NULL
 );
+
+CREATE TABLE forecast_decisions (
+    id          SERIAL PRIMARY KEY,
+    thread_id   TEXT NOT NULL,
+    method      TEXT NOT NULL,
+    forecast    JSONB NOT NULL,
+    reason      TEXT,
+    attempts    INTEGER NOT NULL,
+    approved    BOOLEAN NOT NULL,
+    decided_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
